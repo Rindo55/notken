@@ -365,7 +365,7 @@ class clicker:
                 if getData["data"][0]["availableCoins"] < _sc:
                     if not self.readyToClick():
                         print('[~] Sleeping For 5MIN')
-                        time.sleep(875)
+                        time.sleep(1000)
                 
                 if getData['data'][0]['turboTimes'] > 0:
                     print('')
