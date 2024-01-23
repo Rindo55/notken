@@ -137,10 +137,11 @@ class Proxy_Tools:
                 return self.valid_proxy
 
 class clicker:
-    def __init__(self, client:TelegramClient) -> None:
+    def __init__(self, client) -> None:
         self.session = requests.sessions.Session()
         self.session.mount("https://", BypassTLSv1_3())
         self.session.headers = {
+            "Host": "clicker-api.joincommunity.xyz",
             "Accept": "application/json",
             "Accept-Language": "en-US,en;q=0.9,fa;q=0.8",
             "Auth": "1",
@@ -167,15 +168,9 @@ class clicker:
         }
         self.scraper = self.session
         self.client = client
-        self.webviewApp = client(
-            functions.messages.RequestWebViewRequest(
-                peer='notcoin_bot',
-                bot='notcoin_bot',
-                platform='android',
-                from_bot_menu=False,
-                url='https://clicker.joincommunity.xyz/clicker',
-            )
-        )
+        self.webviewApp = client.get_inline_bot_results('notcoin_bot', 'https://clicker.joincommunity.xyz/clicker')
+        
+        
         self.webAppData = self.generateAuthToken()
         print(self.webviewApp, self.webAppData)
         self.mining_started = False
