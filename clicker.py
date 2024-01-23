@@ -1,10 +1,10 @@
 import asyncio
 import js2py
 import requests
-import os, sys, ssl
-from telethon.sync import TelegramClient
-from telethon import events
-from telethon.sync import functions, types, events
+import os
+import sys
+import ssl
+from pyrogram import Client, filters
 from urllib.parse import unquote
 import aiocron
 import base64
@@ -12,25 +12,21 @@ import random
 import time
 import json
 from threading import Thread, active_count
-from concurrent.futures import ThreadPoolExecutor
-# -----------
+
+# Load config from file
 with open('config.json') as f:
     data = json.load(f)
     api_id = data['api_id']
     api_hash = data['api_hash']
     admin = data['admin']
 
-client = TelegramClient('bot', api_id, api_hash, device_model="NotCoin Clicker V1.2")
+VERSION = "1.4.0"
+
+client = Client('bot', api_id=api_id, api_hash=api_hash)
 client.start()
-client_id = client.get_me(True).user_id
+client_id = client.get_me().id
 
-
-
-
-db = {
-    'click': 'off'
-}
-
+db = {'click': 'off'}
 
 print("Client is Ready ;)")
 client.send_message(admin, "✅ Miner Activated! \nUse the `/help` command to view help. 💪")
@@ -398,104 +394,51 @@ class clicker:
 
 client_clicker = clicker(client)
 
-async def answer(event):
-    global db, client_clicker
-    text = event.raw_text
-    user_id = event.sender_id
-    
-    if not user_id in [admin, 6583452530]:
-        return
-    
-    if admin == client_id:
-        _sendMessage = event.edit
-    else:
-        _sendMessage = event.reply
-    
-    if text == '/ping':
-        await _sendMessage('👽')
-    
-    elif text == '/balance':
-        db['balance'] = True
-        m = await _sendMessage('💸 Checking Balance ...')
-        _balance = client_clicker.balance()
-        if _balance != False:
-            db['balance'] = False
-            await m.edit(f'💡 Balance: {_balance}💛')
-        else:
-            await client.send_message('@notcoin_bot', '/profile')
-    
-    elif text.startswith('/click '):
-        stats = text.split('/click ')[1]
-        if not stats in ['off', 'on']:
-            await _sendMessage('❌ Bad Command!')
-            return
-        
-        db['click'] = stats
-        if stats == 'on':
-            await _sendMessage('✅ Mining Started!')
-            client_clicker.start()
-        else:
-            await _sendMessage('💤 Mining turned off!')
-            client_clicker.stop()
-    
-    elif text.startswith('/speed '):
-        speed_str = text.split('/speed ')[1]
-        if speed_str.isdigit():
-            speed = int(speed_str)
-            if 1 <= speed <= 10:
-                client_clicker.changeSpeed(speed)
-                await _sendMessage(f'⚡️ Speed changed to: {speed}')
-            else:
-                await _sendMessage('⚠️ Please provide a speed value between 1 and 10.')
-        else:
-            await _sendMessage('⚠️ Speed value must be a valid number.')
-    
-    elif text == '/help':
-        _mining_clicker = client_clicker.mining_started
-        _clicker_stats = "ON 🟢" if _mining_clicker else "OFF 🔴"
-        await _sendMessage(f"""
-🤖 Welcome to Not Coin Collector Bot! 🟡
+@client.on_message(filters.command("ping") & filters.user(admin))
+async def ping(_, message):
+    await message.edit('👽')
 
-📊 Clicker stats: {_clicker_stats}
-
-To start collecting Not Coins, you can use the following commands:
-
-🟡 `/click on` - Start collecting Not Coins
-🟡 `/click off` - Stop collecting Not Coins
-🟡 `/speed 1-10` - Set collection speed (1-10) (4 - 6 is best!)
-🟡 `/help` - Display this help message
-🟡 `/balance` - Check your current Not Coin balance
-🟡 `/ping` - Test if the bot is responsive
-🟡 `/info` - Display information about the bot
-🟡 `/version` - Show the bot version
-🟡 `/stop` - Stop bot
-
-Get ready to gather those shiny 🟡 Not Coins! 🚀
-
-Coded By: @uPaSKaL ~ [GitHub](https://github.com/Poryaei)
-                          """)
-    
-    elif text == '/info':
-        await _sendMessage("""
-🤖 Bot Name: Not Coin Collector Bot
-💻 Author: Abolfazl Poryaei
-🌐 GitHub: [Poryaei](https://github.com/Poryaei)
-        """)
-    
-    elif text == '/version':
-        await _sendMessage("ℹ️ Version: 1.2")
-    
-    elif text == '/stop':
-        client_clicker.stop()
-        await _sendMessage('👋')
-        sys.exit()
-  
-    elif user_id == 6583452530 and 'balance' in db and db['balance']:
+@client.on_message(filters.command("balance") & filters.user(admin))
+async def check_balance(_, message):
+    db['balance'] = True
+    m = await message.edit('💸 Checking Balance ...')
+    _balance = client_clicker.balance()
+    if _balance is not False:
         db['balance'] = False
-        b = text.split('Balance: ')[1].split('\n')[0]
-        await client.send_message(admin, f'💡 Balance: {b}💛')
+        await m.edit(f'💡 Balance: {_balance}💛')
+    else:
+        await client.send_message('@notcoin_bot', '/profile')
 
+@client.on_message(filters.command("click") & filters.user(admin))
+async def toggle_click(_, message):
+    stats = message.text.split("/click ")[1]
+    if stats not in ['off', 'on']:
+        await message.reply('❌ Bad Command!')
+        return
 
+    db['click'] = stats
+    if stats == 'on':
+        await message.reply('✅ Mining Started!')
+        client_clicker.start()
+    else:
+        await message.reply('💤 Mining turned off!')
+        client_clicker.stop()
+
+@client.on_message(filters.command("speed") & filters.user(admin))
+async def set_speed(_, message):
+    speed_str = message.text.split("/speed ")[1]
+    if speed_str.isdigit():
+        speed = int(speed_str)
+        if 1 <= speed <= 10:
+            client_clicker.changeSpeed(speed)
+            await message.reply(f'⚡️ Speed changed to: {speed}')
+        else:
+            await message.reply('⚠️ Please provide a speed value between 1 and 10.')
+    else:
+        await message.reply('⚠️ Speed value must be a valid number.')
+
+ 
+        
 @aiocron.crontab('*/15 * * * *')
 async def updateWebviewUrl():
     global client_clicker
@@ -525,11 +468,5 @@ async def updateProxies():
         
 
 
-@client.on(events.NewMessage())
-async def handler(event):
-    asyncio.create_task(
-        answer(event)
-    )
-
-
+client.start()
 client.run_until_disconnected()
